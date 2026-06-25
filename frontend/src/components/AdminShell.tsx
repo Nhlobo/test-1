@@ -1,6 +1,6 @@
 import { ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { setAccessToken } from '../lib/api';
+import { api, setAccessToken } from '../lib/api';
 import { getAuthUser } from '../lib/auth';
 
 type Props = {
@@ -15,8 +15,17 @@ export default function AdminShell({ children }: Props) {
     { label: 'Dashboard', to: '/dashboard' },
     { label: 'Admin Users', to: '/admin/users' },
     { label: 'Invite User', to: '/admin/invite' },
-    { label: 'MFA Setup', to: '/settings/mfa' }
+    { label: 'MFA Setup', to: '/settings/mfa' },
+    { label: 'Devices', to: '/settings/devices' }
   ];
+
+  async function signOut() {
+    try {
+      await api.post('/auth/logout');
+    } catch {}
+    setAccessToken();
+    window.location.href = '/sign-in';
+  }
 
   return (
     <div className="min-h-screen bg-slate-950 text-white">
@@ -59,13 +68,7 @@ export default function AdminShell({ children }: Props) {
               <p className="mt-1 text-sm text-slate-400">Manage internal and external access.</p>
             </div>
 
-            <button
-              className="btn-secondary !w-auto px-5"
-              onClick={() => {
-                setAccessToken();
-                window.location.href = '/sign-in';
-              }}
-            >
+            <button className="btn-secondary !w-auto px-5" onClick={signOut}>
               Sign Out
             </button>
           </div>
