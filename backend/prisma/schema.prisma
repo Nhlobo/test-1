@@ -1,0 +1,132 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserType {
+  INTERNAL
+  EXTERNAL
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  DIRECTOR
+  MANAGER
+  STAFF
+  REFERRING_ATTORNEY
+  MEDICAL_EXPERT
+}
+
+enum UserStatus {
+  PENDING_INVITE
+  ACTIVE
+  SUSPENDED
+  LOCKED
+  DISABLED
+}
+
+enum InviteType {
+  INTERNAL_ACCOUNT_SETUP
+  EXTERNAL_DASHBOARD_ACCESS
+}
+
+enum TokenType {
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
+  INVITE
+  EXTERNAL_ACCESS_CODE
+  DEVICE_VERIFICATION
+}
+
+model User {
+  id                    String         @id @default(cuid())
+  email                 String         @unique
+  firstName             String
+  lastName              String
+  passwordHash          String?
+  userType              UserType
+  role                  Role
+  status                UserStatus     @default(PENDING_INVITE)
+  emailVerifiedAt       DateTime?
+  mfaEnabled            Boolean        @default(false)
+  mfaSecret             String?
+  failedLoginAttempts   Int            @default(0)
+  lockedUntil           DateTime?
+  lastLoginAt           DateTime?
+  inviteConsumedAt      DateTime?
+  externalAccessActive  Boolean        @default(false)
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+
+  sessions              Session[]
+  loginHistory          LoginHistory[]
+  tokens                OneTimeToken[]
+  devices               Device[]
+}
+
+model Session {
+  id                 String   @id @default(cuid())
+  userId             String
+  refreshTokenHash   String
+  ipAddress          String?
+  userAgent          String?
+  deviceName         String?
+  expiresAt          DateTime
+  revokedAt          DateTime?
+  createdAt          DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Device {
+  id            String   @id @default(cuid())
+  userId        String
+  deviceId      String   @unique
+  name          String?
+  trusted       Boolean  @default(false)
+  lastSeenAt    DateTime?
+  createdAt     DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model OneTimeToken {
+  id           String    @id @default(cuid())
+  userId       String
+  type         TokenType
+  tokenHash    String
+  codeHash     String?
+  inviteType   InviteType?
+  expiresAt    DateTime
+  consumedAt   DateTime?
+  createdAt    DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type])
+}
+
+model LoginHistory {
+  id          String   @id @default(cuid())
+  userId      String
+  email       String
+  success     Boolean
+  reason      String?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([email])
+}
