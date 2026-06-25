@@ -20,13 +20,22 @@ export default function SignInPage() {
     setError('');
 
     try {
-      const { data } = await api.post('/auth/login', form);
+      const payload = {
+        email: form.email,
+        password: form.password,
+        ...(needsMfa && form.mfaToken ? { mfaToken: form.mfaToken } : {})
+      };
+
+      const { data } = await api.post('/auth/login', payload);
       setAccessToken(data.accessToken);
       navigate('/dashboard');
     } catch (err: any) {
       const message = err?.response?.data?.message || 'Sign in failed';
       setError(message);
-      if (String(message).toLowerCase().includes('mfa')) setNeedsMfa(true);
+
+      if (String(message).toLowerCase().includes('mfa')) {
+        setNeedsMfa(true);
+      }
     } finally {
       setLoading(false);
     }
@@ -68,6 +77,7 @@ export default function SignInPage() {
               <label className="label">MFA Code</label>
               <input
                 className="input"
+                inputMode="numeric"
                 placeholder="Enter 6-digit code"
                 value={form.mfaToken}
                 onChange={(e) => setForm((s) => ({ ...s, mfaToken: e.target.value }))}
@@ -88,7 +98,7 @@ export default function SignInPage() {
           )}
 
           <button className="btn-primary" disabled={loading}>
-            {loading ? 'Signing In...' : 'Sign In'}
+            {loading ? 'Signing In...' : needsMfa ? 'Verify & Sign In' : 'Sign In'}
           </button>
         </form>
 
