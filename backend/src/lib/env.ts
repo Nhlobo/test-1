@@ -9,5 +9,7 @@ export const env = {
   maxFailedLoginAttempts: Number(process.env.MAX_FAILED_LOGIN_ATTEMPTS || 5),
   accountLockMinutes: Number(process.env.ACCOUNT_LOCK_MINUTES || 30),
   mfaIssuer: process.env.MFA_ISSUER || 'Internal System',
-  appUrl: process.env.APP_URL || 'http://localhost:5173'
+  appUrl: process.env.APP_URL || 'http://localhost:5173',
+  cookieDomain: process.env.COOKIE_DOMAIN || 'localhost',
+  nodeEnv: process.env.NODE_ENV || 'development'
 };
