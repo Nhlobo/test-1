@@ -3,11 +3,32 @@ import { Role, UserType } from '@prisma/client';
 import { z } from 'zod';
 import { requireAuth, requireRoles } from '../middleware/auth.middleware.js';
 import { adminInviteUser, disableExternalAccess, enableExternalAccess } from '../services/auth.service.js';
+import { prisma } from '../lib/prisma.js';
 
 const router = Router();
 
 router.use(requireAuth);
 router.use(requireRoles(Role.SUPER_ADMIN, Role.ADMIN));
+
+router.get('/users', async (_req, res) => {
+  const users = await prisma.user.findMany({
+    orderBy: { createdAt: 'desc' },
+    select: {
+      id: true,
+      email: true,
+      firstName: true,
+      lastName: true,
+      role: true,
+      userType: true,
+      status: true,
+      externalAccessActive: true,
+      lastLoginAt: true,
+      createdAt: true
+    }
+  });
+
+  res.json(users);
+});
 
 router.post('/users/invite', async (req, res) => {
   try {
