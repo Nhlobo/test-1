@@ -1,13 +1,17 @@
+
 import { useEffect, useState } from 'react';
 import AdminShell from '../components/AdminShell';
 import Badge from '../components/Badge';
 import { api } from '../lib/api';
 import { AdminUser } from '../types/auth';
+import { usePermissions } from '../hooks/usePermissions';
+import { hasPermission } from '../lib/permissions';
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
+  const { permissions } = usePermissions();
 
   async function loadUsers() {
     try {
@@ -32,6 +36,15 @@ export default function AdminUsersPage() {
       await loadUsers();
     } catch (err: any) {
       setMessage(err?.response?.data?.message || 'Unable to update external access');
+    }
+  }
+
+  async function setStatus(user: AdminUser, action: 'activate' | 'suspend' | 'disable') {
+    try {
+      await api.post(`/admin/users/${user.id}/${action}`);
+      await loadUsers();
+    } catch (err: any) {
+      setMessage(err?.response?.data?.message || 'Unable to update user status');
     }
   }
 
@@ -69,13 +82,15 @@ export default function AdminUsersPage() {
                   <th className="px-4 py-3 font-medium">Type</th>
                   <th className="px-4 py-3 font-medium">Role</th>
                   <th className="px-4 py-3 font-medium">Status</th>
+                  <th className="px-4 py-3 font-medium">Verified</th>
+                  <th className="px-4 py-3 font-medium">MFA</th>
                   <th className="px-4 py-3 font-medium">Access</th>
-                  <th className="px-4 py-3 font-medium">Action</th>
+                  <th className="px-4 py-3 font-medium">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {users.map((user) => (
-                  <tr key={user.id} className="border-b border-white/5">
+                  <tr key={user.id} className="border-b border-white/5 align-top">
                     <td className="px-4 py-4 text-white">
                       {user.firstName} {user.lastName}
                     </td>
@@ -87,8 +102,26 @@ export default function AdminUsersPage() {
                     </td>
                     <td className="px-4 py-4 text-slate-300">{user.role}</td>
                     <td className="px-4 py-4">
-                      <Badge tone={user.status === 'ACTIVE' ? 'green' : 'rose'}>
+                      <Badge
+                        tone={
+                          user.status === 'ACTIVE'
+                            ? 'green'
+                            : user.status === 'PENDING_INVITE'
+                              ? 'amber'
+                              : 'rose'
+                        }
+                      >
                         {user.status}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-4">
+                      <Badge tone={user.emailVerifiedAt ? 'green' : 'amber'}>
+                        {user.emailVerifiedAt ? 'Verified' : 'Pending'}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-4">
+                      <Badge tone={user.mfaEnabled ? 'green' : 'slate'}>
+                        {user.mfaEnabled ? 'Enabled' : 'Not Enabled'}
                       </Badge>
                     </td>
                     <td className="px-4 py-4">
@@ -101,16 +134,43 @@ export default function AdminUsersPage() {
                       )}
                     </td>
                     <td className="px-4 py-4">
-                      {user.userType === 'EXTERNAL' ? (
-                        <button
-                          className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-white hover:bg-white/10"
-                          onClick={() => toggleExternalAccess(user)}
-                        >
-                          {user.externalAccessActive ? 'Disable Access' : 'Enable Access'}
-                        </button>
-                      ) : (
-                        <span className="text-xs text-slate-500">No action</span>
-                      )}
+                      <div className="flex flex-wrap gap-2">
+                        {user.userType === 'EXTERNAL' && hasPermission(permissions, 'manage_external_access') && (
+                          <button
+                            className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-white hover:bg-white/10"
+                            onClick={() => toggleExternalAccess(user)}
+                          >
+                            {user.externalAccessActive ? 'Disable Access' : 'Enable Access'}
+                          </button>
+                        )}
+
+                        {user.status !== 'ACTIVE' && hasPermission(permissions, 'manage_users') && (
+                          <button
+                            className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200 hover:bg-emerald-500/20"
+                            onClick={() => setStatus(user, 'activate')}
+                          >
+                            Activate
+                          </button>
+                        )}
+
+                        {user.status !== 'SUSPENDED' && hasPermission(permissions, 'suspend_users') && (
+                          <button
+                            className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-200 hover:bg-amber-500/20"
+                            onClick={() => setStatus(user, 'suspend')}
+                          >
+                            Suspend
+                          </button>
+                        )}
+
+                        {user.status !== 'DISABLED' && hasPermission(permissions, 'disable_users') && (
+                          <button
+                            className="rounded-lg border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-xs text-rose-200 hover:bg-rose-500/20"
+                            onClick={() => setStatus(user, 'disable')}
+                          >
+                            Disable
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
