@@ -9,7 +9,8 @@ declare global {
         role: Role;
         userType: UserType;
         sessionId: string;
-      }
+        deviceId?: string;
+      };
     }
   }
 }
