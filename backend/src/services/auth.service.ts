@@ -1,12 +1,13 @@
+
 import dayjs from 'dayjs';
 import { InviteType, Role, TokenType, UserStatus, UserType } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 import { env } from '../lib/env.js';
-import { hashPassword, sha256, verifyPassword } from '../lib/hash.js';
+import { hashPassword, verifyPassword } from '../lib/hash.js';
 import { createOneTimeToken, consumeToken } from './token.service.js';
 import { createSession } from './session.service.js';
 import { sendEmail } from '../lib/mailer.js';
-import { getDeviceName } from '../lib/device.js';
+import { getDeviceName, makeDeviceId } from '../lib/device.js';
 import { generateMfaQrDataUrl, generateMfaSecret, verifyMfaToken } from '../lib/mfa.js';
 
 export async function adminInviteUser(input: {
@@ -92,13 +93,68 @@ export async function acceptInvite(params: {
     data: {
       passwordHash,
       status: UserStatus.ACTIVE,
-      inviteConsumedAt: new Date(),
+      inviteConsumedAt: new Date()
+    }
+  });
+
+  const { token, expiresAt } = await createOneTimeToken(user.id, TokenType.EMAIL_VERIFICATION, {
+    ttlHours: env.emailVerifyTtlHours
+  });
+
+  const verifyLink = `${env.appUrl}/verify-email?token=${token}&email=${encodeURIComponent(user.email)}`;
+
+  await sendEmail(
+    user.email,
+    'Verify your email',
+    `<p>Verify here: <a href="${verifyLink}">${verifyLink}</a></p><p>Expires: ${expiresAt.toISOString()}</p>`
+  );
+
+  return updated;
+}
+
+export async function verifyEmail(params: { email: string; token: string }) {
+  const user = await prisma.user.findUnique({
+    where: { email: params.email.toLowerCase() }
+  });
+
+  if (!user) throw new Error('Invalid verification request');
+
+  const consumed = await consumeToken({
+    userId: user.id,
+    type: TokenType.EMAIL_VERIFICATION,
+    token: params.token
+  });
+
+  if (!consumed) throw new Error('Verification link invalid or expired');
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
       emailVerifiedAt: new Date(),
       externalAccessActive: user.userType === UserType.EXTERNAL ? true : user.externalAccessActive
     }
   });
+}
 
-  return updated;
+export async function resendEmailVerification(email: string) {
+  const user = await prisma.user.findUnique({
+    where: { email: email.toLowerCase() }
+  });
+
+  if (!user) return;
+  if (user.emailVerifiedAt) return;
+
+  const { token, expiresAt } = await createOneTimeToken(user.id, TokenType.EMAIL_VERIFICATION, {
+    ttlHours: env.emailVerifyTtlHours
+  });
+
+  const verifyLink = `${env.appUrl}/verify-email?token=${token}&email=${encodeURIComponent(user.email)}`;
+
+  await sendEmail(
+    user.email,
+    'Verify your email',
+    `<p>Verify here: <a href="${verifyLink}">${verifyLink}</a></p><p>Expires: ${expiresAt.toISOString()}</p>`
+  );
 }
 
 export async function login(params: {
@@ -107,6 +163,8 @@ export async function login(params: {
   mfaToken?: string;
   ipAddress?: string;
   userAgent?: string;
+  deviceId?: string;
+  trustDevice?: boolean;
 }) {
   const email = params.email.toLowerCase();
   const user = await prisma.user.findUnique({ where: { email } });
@@ -152,11 +210,23 @@ export async function login(params: {
     throw new Error(lockNow ? 'Account locked' : 'Invalid credentials');
   }
 
+  if (!user.emailVerifiedAt) {
+    throw new Error('Email verification required');
+  }
+
   if (user.userType === UserType.EXTERNAL && !user.externalAccessActive) {
     throw new Error('External access disabled');
   }
 
-  if (user.mfaEnabled) {
+  const currentDeviceId = params.deviceId || makeDeviceId();
+  const device = await prisma.device.findFirst({
+    where: { userId: user.id, deviceId: currentDeviceId }
+  });
+
+  const trustedDevice = !!device?.trusted;
+  const requiresMfa = user.mfaEnabled || !trustedDevice;
+
+  if (requiresMfa) {
     if (!params.mfaToken || !user.mfaSecret || !verifyMfaToken(user.mfaSecret, params.mfaToken)) {
       throw new Error('Invalid MFA token');
     }
@@ -172,6 +242,24 @@ export async function login(params: {
     }
   });
 
+  if (params.trustDevice) {
+    await prisma.device.upsert({
+      where: { deviceId: currentDeviceId },
+      update: {
+        trusted: true,
+        lastSeenAt: new Date(),
+        name: getDeviceName(params.userAgent)
+      },
+      create: {
+        userId: user.id,
+        deviceId: currentDeviceId,
+        trusted: true,
+        lastSeenAt: new Date(),
+        name: getDeviceName(params.userAgent)
+      }
+    });
+  }
+
   await prisma.loginHistory.create({
     data: { userId: user.id, email, success: true, reason: 'LOGIN_SUCCESS', ipAddress: params.ipAddress, userAgent: params.userAgent }
   });
@@ -185,7 +273,9 @@ export async function login(params: {
     userType: user.userType,
     ipAddress: params.ipAddress,
     userAgent: params.userAgent,
-    deviceName
+    deviceName,
+    deviceId: currentDeviceId,
+    trustedDevice: params.trustDevice || trustedDevice
   });
 }
 
@@ -282,6 +372,27 @@ export async function listSessions(userId: string) {
   return prisma.session.findMany({
     where: { userId, revokedAt: null, expiresAt: { gt: new Date() } },
     orderBy: { createdAt: 'desc' }
+  });
+}
+
+export async function listDevices(userId: string) {
+  return prisma.device.findMany({
+    where: { userId },
+    orderBy: { lastSeenAt: 'desc' }
+  });
+}
+
+export async function trustDevice(userId: string, deviceId: string) {
+  return prisma.device.updateMany({
+    where: { userId, deviceId },
+    data: { trusted: true, lastSeenAt: new Date() }
+  });
+}
+
+export async function untrustDevice(userId: string, deviceId: string) {
+  return prisma.device.updateMany({
+    where: { userId, deviceId },
+    data: { trusted: false, lastSeenAt: new Date() }
   });
 }
 
