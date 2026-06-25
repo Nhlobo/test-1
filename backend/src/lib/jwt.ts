@@ -7,13 +7,14 @@ export type AccessPayload = {
   role: string;
   userType: string;
   sessionId: string;
+  deviceId?: string;
 };
 
 export function signAccessToken(payload: AccessPayload) {
   return jwt.sign(payload, env.accessSecret, { expiresIn: env.accessExpiresIn });
 }
 
-export function signRefreshToken(payload: { sub: string; sessionId: string }) {
+export function signRefreshToken(payload: { sub: string; sessionId: string; deviceId?: string }) {
   return jwt.sign(payload, env.refreshSecret, { expiresIn: env.refreshExpiresIn });
 }
 
@@ -22,5 +23,9 @@ export function verifyAccessToken(token: string) {
 }
 
 export function verifyRefreshToken(token: string) {
-  return jwt.verify(token, env.refreshSecret) as { sub: string; sessionId: string };
+  return jwt.verify(token, env.refreshSecret) as {
+    sub: string;
+    sessionId: string;
+    deviceId?: string;
+  };
 }
