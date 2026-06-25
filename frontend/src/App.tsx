@@ -7,6 +7,9 @@ import DashboardPage from './pages/DashboardPage';
 import CheckEmailPage from './pages/CheckEmailPage';
 import AdminUsersPage from './pages/AdminUsersPage';
 import AdminInviteUserPage from './pages/AdminInviteUserPage';
+import MfaSetupPage from './pages/MfaSetupPage';
+import ProtectedRoute from './components/ProtectedRoute';
+import RoleGuard from './components/RoleGuard';
 
 export default function App() {
   return (
@@ -17,9 +20,46 @@ export default function App() {
       <Route path="/check-email" element={<CheckEmailPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/accept-invite" element={<AcceptInvitePage />} />
-      <Route path="/dashboard" element={<DashboardPage />} />
-      <Route path="/admin/users" element={<AdminUsersPage />} />
-      <Route path="/admin/invite" element={<AdminInviteUserPage />} />
+
+      <Route
+        path="/dashboard"
+        element={
+          <ProtectedRoute>
+            <DashboardPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/settings/mfa"
+        element={
+          <ProtectedRoute>
+            <MfaSetupPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/users"
+        element={
+          <ProtectedRoute>
+            <RoleGuard roles={['SUPER_ADMIN', 'ADMIN']}>
+              <AdminUsersPage />
+            </RoleGuard>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/invite"
+        element={
+          <ProtectedRoute>
+            <RoleGuard roles={['SUPER_ADMIN', 'ADMIN']}>
+              <AdminInviteUserPage />
+            </RoleGuard>
+          </ProtectedRoute>
+        }
+      />
     </Routes>
   );
 }
