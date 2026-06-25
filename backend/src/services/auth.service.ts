@@ -409,3 +409,33 @@ export async function enableExternalAccess(userId: string) {
     data: { externalAccessActive: true }
   });
 }
+export async function updateUserStatus(userId: string, status: UserStatus) {
+  return prisma.user.update({
+    where: { id: userId },
+    data: {
+      status,
+      externalAccessActive: status === UserStatus.ACTIVE
+    }
+  });
+}
+
+export async function activateUser(userId: string) {
+  return prisma.user.update({
+    where: { id: userId },
+    data: {
+      status: UserStatus.ACTIVE
+    }
+  });
+}
+
+export async function revokeAllUserSessions(userId: string) {
+  return prisma.session.updateMany({
+    where: {
+      userId,
+      revokedAt: null
+    },
+    data: {
+      revokedAt: new Date()
+    }
+  });
+}
