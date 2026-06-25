@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { api, setAccessToken } from '../lib/api';
+import { getAuthUser } from '../lib/auth';
 
 type Session = {
   id: string;
@@ -20,6 +22,7 @@ export default function DashboardPage() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [history, setHistory] = useState<LoginHistory[]>([]);
   const [message, setMessage] = useState('');
+  const user = getAuthUser();
 
   useEffect(() => {
     async function load() {
@@ -38,6 +41,8 @@ export default function DashboardPage() {
     load();
   }, []);
 
+  const isAdmin = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN';
+
   return (
     <div className="min-h-screen bg-slate-950 p-6 text-white md:p-10">
       <div className="mx-auto max-w-6xl">
@@ -45,17 +50,40 @@ export default function DashboardPage() {
           <div>
             <h1 className="text-3xl font-semibold">Dashboard</h1>
             <p className="mt-2 text-slate-300">Protected internal/external access area.</p>
+            {user && (
+              <p className="mt-2 text-sm text-slate-400">
+                {user.email} • {user.role} • {user.userType}
+              </p>
+            )}
           </div>
 
-          <button
-            className="btn-secondary !w-auto px-5"
-            onClick={() => {
-              setAccessToken();
-              window.location.href = '/sign-in';
-            }}
-          >
-            Sign Out
-          </button>
+          <div className="flex items-center gap-3">
+            {isAdmin && (
+              <>
+                <Link to="/admin/users" className="btn-secondary !w-auto px-5">
+                  Admin Users
+                </Link>
+
+                <Link to="/admin/invite" className="btn-secondary !w-auto px-5">
+                  Invite User
+                </Link>
+              </>
+            )}
+
+            <Link to="/settings/mfa" className="btn-secondary !w-auto px-5">
+              MFA Setup
+            </Link>
+
+            <button
+              className="btn-secondary !w-auto px-5"
+              onClick={() => {
+                setAccessToken();
+                window.location.href = '/sign-in';
+              }}
+            >
+              Sign Out
+            </button>
+          </div>
         </div>
 
         {message && (
