@@ -1,0 +1,105 @@
+import { useEffect, useState } from 'react';
+import { api, setAccessToken } from '../lib/api';
+
+type Session = {
+  id: string;
+  deviceName?: string;
+  ipAddress?: string;
+  createdAt: string;
+};
+
+type LoginHistory = {
+  id: string;
+  success: boolean;
+  reason?: string;
+  ipAddress?: string;
+  createdAt: string;
+};
+
+export default function DashboardPage() {
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [history, setHistory] = useState<LoginHistory[]>([]);
+  const [message, setMessage] = useState('');
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const [sessionsRes, historyRes] = await Promise.all([
+          api.get('/auth/sessions'),
+          api.get('/auth/login-history')
+        ]);
+        setSessions(sessionsRes.data);
+        setHistory(historyRes.data);
+      } catch {
+        setMessage('You are not authenticated.');
+      }
+    }
+
+    load();
+  }, []);
+
+  return (
+    <div className="min-h-screen bg-slate-950 p-6 text-white md:p-10">
+      <div className="mx-auto max-w-6xl">
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-semibold">Dashboard</h1>
+            <p className="mt-2 text-slate-300">Protected internal/external access area.</p>
+          </div>
+
+          <button
+            className="btn-secondary !w-auto px-5"
+            onClick={() => {
+              setAccessToken();
+              window.location.href = '/sign-in';
+            }}
+          >
+            Sign Out
+          </button>
+        </div>
+
+        {message && (
+          <div className="mb-6 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+            {message}
+          </div>
+        )}
+
+        <div className="grid gap-6 lg:grid-cols-2">
+          <section className="card p-6">
+            <h2 className="text-xl font-semibold">Active Sessions</h2>
+            <div className="mt-4 space-y-4">
+              {sessions.map((session) => (
+                <div key={session.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <p className="font-medium">{session.deviceName || 'Unknown device'}</p>
+                  <p className="mt-1 text-sm text-slate-300">{session.ipAddress || 'Unknown IP'}</p>
+                  <p className="mt-1 text-xs text-slate-400">
+                    Started {new Date(session.createdAt).toLocaleString()}
+                  </p>
+                </div>
+              ))}
+              {!sessions.length && <p className="text-sm text-slate-400">No active sessions loaded.</p>}
+            </div>
+          </section>
+
+          <section className="card p-6">
+            <h2 className="text-xl font-semibold">Login History</h2>
+            <div className="mt-4 space-y-4">
+              {history.map((item) => (
+                <div key={item.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <p className={`font-medium ${item.success ? 'text-emerald-300' : 'text-rose-300'}`}>
+                    {item.success ? 'Successful login' : 'Failed login'}
+                  </p>
+                  <p className="mt-1 text-sm text-slate-300">{item.reason || 'No reason'}</p>
+                  <p className="mt-1 text-xs text-slate-400">
+                    {new Date(item.createdAt).toLocaleString()}
+                  </p>
+                </div>
+              ))}
+              {!history.length && <p className="text-sm text-slate-400">No login history loaded.</p>}
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  );
+}
