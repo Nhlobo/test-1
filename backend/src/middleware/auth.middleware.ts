@@ -17,7 +17,8 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
       email: payload.email,
       role: payload.role as Role,
       userType: payload.userType as UserType,
-      sessionId: payload.sessionId
+      sessionId: payload.sessionId,
+      deviceId: payload.deviceId
     };
     next();
   } catch {
