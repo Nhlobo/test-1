@@ -7,6 +7,8 @@ export type AdminUser = {
   userType: 'INTERNAL' | 'EXTERNAL';
   status: string;
   externalAccessActive: boolean;
+  emailVerifiedAt?: string | null;
+  mfaEnabled: boolean;
   lastLoginAt?: string | null;
   createdAt: string;
 };
