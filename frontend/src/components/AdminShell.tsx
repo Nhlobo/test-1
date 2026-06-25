@@ -1,6 +1,7 @@
 import { ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { setAccessToken } from '../lib/api';
+import { getAuthUser } from '../lib/auth';
 
 type Props = {
   children: ReactNode;
@@ -8,11 +9,13 @@ type Props = {
 
 export default function AdminShell({ children }: Props) {
   const location = useLocation();
+  const user = getAuthUser();
 
   const nav = [
     { label: 'Dashboard', to: '/dashboard' },
     { label: 'Admin Users', to: '/admin/users' },
-    { label: 'Invite User', to: '/admin/invite' }
+    { label: 'Invite User', to: '/admin/invite' },
+    { label: 'MFA Setup', to: '/settings/mfa' }
   ];
 
   return (
@@ -22,6 +25,13 @@ export default function AdminShell({ children }: Props) {
           <div className="mb-8">
             <p className="text-xl font-semibold">Internal System</p>
             <p className="mt-1 text-sm text-slate-400">Administration</p>
+          </div>
+
+          <div className="mb-6 rounded-2xl border border-white/10 bg-white/5 p-4">
+            <p className="text-sm font-medium text-white">{user?.email || 'Signed in user'}</p>
+            <p className="mt-1 text-xs text-slate-400">
+              {user?.role || 'Unknown role'} • {user?.userType || 'Unknown type'}
+            </p>
           </div>
 
           <nav className="space-y-2">
