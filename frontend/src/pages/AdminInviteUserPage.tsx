@@ -1,17 +1,24 @@
-import { FormEvent, useState } from 'react';
+       import { FormEvent, useState } from 'react';
 import AdminShell from '../components/AdminShell';
 import { api } from '../lib/api';
-
-const internalRoles = ['SUPER_ADMIN', 'ADMIN', 'DIRECTOR', 'MANAGER', 'STAFF'];
-const externalRoles = ['REFERRING_ATTORNEY', 'MEDICAL_EXPERT'];
+import { getAuthUser } from '../lib/auth';
 
 export default function AdminInviteUserPage() {
+  const currentUser = getAuthUser();
+  const canManageSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
+
+  const internalRoles = canManageSuperAdmin
+    ? ['SUPER_ADMIN', 'ADMIN', 'DIRECTOR', 'MANAGER', 'STAFF']
+    : ['ADMIN', 'DIRECTOR', 'MANAGER', 'STAFF'];
+
+  const externalRoles = ['REFERRING_ATTORNEY', 'MEDICAL_EXPERT'];
+
   const [form, setForm] = useState({
     firstName: '',
     lastName: '',
     email: '',
     userType: 'INTERNAL',
-    role: 'STAFF'
+    role: canManageSuperAdmin ? 'ADMIN' : 'STAFF'
   });
 
   const [loading, setLoading] = useState(false);
@@ -87,7 +94,9 @@ export default function AdminInviteUserPage() {
                     setForm((s) => ({
                       ...s,
                       userType,
-                      role: userType === 'INTERNAL' ? 'STAFF' : 'REFERRING_ATTORNEY'
+                      role: userType === 'INTERNAL'
+                        ? (canManageSuperAdmin ? 'ADMIN' : 'STAFF')
+                        : 'REFERRING_ATTORNEY'
                     }));
                   }}
                 >
@@ -127,7 +136,7 @@ export default function AdminInviteUserPage() {
         <div className="card p-6">
           <h2 className="text-xl font-semibold">Invite Result</h2>
           <p className="mt-1 text-sm text-slate-400">
-            Use this when email sending is not wired up yet.
+            Use this while email delivery is still in console mode.
           </p>
 
           {!result ? (
