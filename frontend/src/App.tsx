@@ -5,6 +5,8 @@ import ResetPasswordPage from './pages/ResetPasswordPage';
 import AcceptInvitePage from './pages/AcceptInvitePage';
 import DashboardPage from './pages/DashboardPage';
 import CheckEmailPage from './pages/CheckEmailPage';
+import AdminUsersPage from './pages/AdminUsersPage';
+import AdminInviteUserPage from './pages/AdminInviteUserPage';
 
 export default function App() {
   return (
@@ -16,6 +18,8 @@ export default function App() {
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/accept-invite" element={<AcceptInvitePage />} />
       <Route path="/dashboard" element={<DashboardPage />} />
+      <Route path="/admin/users" element={<AdminUsersPage />} />
+      <Route path="/admin/invite" element={<AdminInviteUserPage />} />
     </Routes>
   );
 }
