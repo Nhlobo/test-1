@@ -10,6 +10,9 @@ import AdminInviteUserPage from './pages/AdminInviteUserPage';
 import MfaSetupPage from './pages/MfaSetupPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import RoleGuard from './components/RoleGuard';
+import VerifyEmailNoticePage from './pages/VerifyEmailNoticePage';
+import VerifyEmailPage from './pages/VerifyEmailPage';
+import DevicesPage from './pages/DevicesPage';
 
 export default function App() {
   return (
@@ -20,6 +23,8 @@ export default function App() {
       <Route path="/check-email" element={<CheckEmailPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/accept-invite" element={<AcceptInvitePage />} />
+      <Route path="/verify-email-notice" element={<VerifyEmailNoticePage />} />
+      <Route path="/verify-email" element={<VerifyEmailPage />} />
 
       <Route
         path="/dashboard"
@@ -35,6 +40,15 @@ export default function App() {
         element={
           <ProtectedRoute>
             <MfaSetupPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/settings/devices"
+        element={
+          <ProtectedRoute>
+            <DevicesPage />
           </ProtectedRoute>
         }
       />
