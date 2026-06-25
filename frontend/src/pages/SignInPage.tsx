@@ -2,13 +2,15 @@ import { FormEvent, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import AuthLayout from '../components/AuthLayout';
 import { api, setAccessToken } from '../lib/api';
+import { getDeviceId, setDeviceId } from '../lib/device';
 
 export default function SignInPage() {
   const navigate = useNavigate();
   const [form, setForm] = useState({
     email: '',
     password: '',
-    mfaToken: ''
+    mfaToken: '',
+    trustDevice: true
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -23,17 +25,23 @@ export default function SignInPage() {
       const payload = {
         email: form.email,
         password: form.password,
+        deviceId: getDeviceId() || undefined,
+        trustDevice: form.trustDevice,
         ...(needsMfa && form.mfaToken ? { mfaToken: form.mfaToken } : {})
       };
 
       const { data } = await api.post('/auth/login', payload);
       setAccessToken(data.accessToken);
+      if (data.deviceId) setDeviceId(data.deviceId);
       navigate('/dashboard');
     } catch (err: any) {
       const message = err?.response?.data?.message || 'Sign in failed';
       setError(message);
 
-      if (String(message).toLowerCase().includes('mfa')) {
+      if (
+        String(message).toLowerCase().includes('mfa') ||
+        String(message).toLowerCase().includes('invalid mfa')
+      ) {
         setNeedsMfa(true);
       }
     } finally {
@@ -85,6 +93,15 @@ export default function SignInPage() {
             </div>
           )}
 
+          <label className="flex items-center gap-3 text-sm text-slate-300">
+            <input
+              type="checkbox"
+              checked={form.trustDevice}
+              onChange={(e) => setForm((s) => ({ ...s, trustDevice: e.target.checked }))}
+            />
+            Trust this device
+          </label>
+
           <div className="flex items-center justify-end">
             <Link to="/forgot-password" className="text-sm text-brand-300 hover:text-brand-200">
               Forgot Password?
@@ -100,15 +117,13 @@ export default function SignInPage() {
           <button className="btn-primary" disabled={loading}>
             {loading ? 'Signing In...' : needsMfa ? 'Verify & Sign In' : 'Sign In'}
           </button>
-        </form>
 
-        <div className="mt-8 flex items-center justify-center gap-4 text-sm text-slate-400">
-          <span>Secure</span>
-          <span>•</span>
-          <span>Confidential</span>
-          <span>•</span>
-          <span>Protected</span>
-        </div>
+          {String(error).toLowerCase().includes('email verification') && (
+            <Link to={`/verify-email-notice?email=${encodeURIComponent(form.email)}`} className="btn-secondary">
+              Verify Email
+            </Link>
+          )}
+        </form>
       </div>
     </AuthLayout>
   );
