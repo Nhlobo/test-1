@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, setAccessToken } from '../lib/api';
 import { getAuthUser } from '../lib/auth';
@@ -41,6 +41,39 @@ export default function DashboardPage() {
     load();
   }, []);
 
+  const home = useMemo(() => {
+    if (!user) return { title: 'Dashboard', subtitle: 'Protected access area.' };
+
+    switch (user.role) {
+      case 'SUPER_ADMIN':
+      case 'ADMIN':
+        return {
+          title: 'Administration Dashboard',
+          subtitle: 'Manage users, access, sessions, and platform security.'
+        };
+      case 'DIRECTOR':
+        return {
+          title: 'Director Dashboard',
+          subtitle: 'High-level visibility for internal operations and secure collaboration.'
+        };
+      case 'MANAGER':
+        return {
+          title: 'Manager Dashboard',
+          subtitle: 'Operational workspace for managing staff and protected workflows.'
+        };
+      case 'STAFF':
+        return {
+          title: 'Staff Dashboard',
+          subtitle: 'Secure workspace for internal daily work.'
+        };
+      default:
+        return {
+          title: 'External Dashboard',
+          subtitle: 'Controlled access area for external professionals.'
+        };
+    }
+  }, [user]);
+
   const isAdmin = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN';
 
   return (
@@ -48,8 +81,8 @@ export default function DashboardPage() {
       <div className="mx-auto max-w-6xl">
         <div className="mb-8 flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-semibold">Dashboard</h1>
-            <p className="mt-2 text-slate-300">Protected internal/external access area.</p>
+            <h1 className="text-3xl font-semibold">{home.title}</h1>
+            <p className="mt-2 text-slate-300">{home.subtitle}</p>
             {user && (
               <p className="mt-2 text-sm text-slate-400">
                 {user.email} • {user.role} • {user.userType}
@@ -57,13 +90,12 @@ export default function DashboardPage() {
             )}
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             {isAdmin && (
               <>
                 <Link to="/admin/users" className="btn-secondary !w-auto px-5">
                   Admin Users
                 </Link>
-
                 <Link to="/admin/invite" className="btn-secondary !w-auto px-5">
                   Invite User
                 </Link>
@@ -74,9 +106,16 @@ export default function DashboardPage() {
               MFA Setup
             </Link>
 
+            <Link to="/settings/devices" className="btn-secondary !w-auto px-5">
+              Devices
+            </Link>
+
             <button
               className="btn-secondary !w-auto px-5"
-              onClick={() => {
+              onClick={async () => {
+                try {
+                  await api.post('/auth/logout');
+                } catch {}
                 setAccessToken();
                 window.location.href = '/sign-in';
               }}
@@ -91,6 +130,23 @@ export default function DashboardPage() {
             {message}
           </div>
         )}
+
+        <div className="mb-6 grid gap-6 lg:grid-cols-3">
+          <div className="card p-6">
+            <p className="text-sm text-slate-400">Role</p>
+            <p className="mt-2 text-2xl font-semibold text-white">{user?.role || 'Unknown'}</p>
+          </div>
+
+          <div className="card p-6">
+            <p className="text-sm text-slate-400">Active Sessions</p>
+            <p className="mt-2 text-2xl font-semibold text-white">{sessions.length}</p>
+          </div>
+
+          <div className="card p-6">
+            <p className="text-sm text-slate-400">Recent Login Events</p>
+            <p className="mt-2 text-2xl font-semibold text-white">{history.length}</p>
+          </div>
+        </div>
 
         <div className="grid gap-6 lg:grid-cols-2">
           <section className="card p-6">
